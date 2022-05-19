@@ -49,7 +49,7 @@ class MLP(nn.Sequential):
         expansion = 4
         self.add_module('mlp_layer_0', nn.Conv2d(channels, channels*expansion, kernel_size=1, bias=False))
         self.add_module('mlp_act', nn.GELU())
-        self.add_module('mlp_layer_1', nn.Conv2d(channels*4, channels, kernel_size=1, bias=False))
+        self.add_module('mlp_layer_1', nn.Conv2d(channels*expansion, channels, kernel_size=1, bias=False))
 
 
 class LocalAggModule(nn.Sequential):
@@ -96,8 +96,9 @@ class ConvDownsampling(nn.Sequential):
 
 
 class EdgeViT(nn.Module):
-    def __init__(self, channels, blocks, heads, r=[4, 2, 2, 1], num_classes=1000):
+    def __init__(self, channels, blocks, heads, r=[4, 2, 2, 1], num_classes=1000, distillation=False):
         super().__init__()
+        self.distillation = distillation
         
         l = []
         in_channels = 3
@@ -115,12 +116,23 @@ class EdgeViT(nn.Module):
         
         self.main_body = nn.Sequential(*l)
         self.pooling = nn.AdaptiveAvgPool2d(1)
+
         self.classifier = nn.Linear(in_channels, num_classes, bias=True)
+
+        if self.distillation:
+            self.dist_classifier = nn.Linear(in_channels, num_classes, bias=True)
     
     def forward(self, x):
         x = self.main_body(x)
         x = self.pooling(x).flatten(1)
-        x = self.classifier(x)
+
+        if self.distillation:
+            x = self.classifier(x), self.dist_classifier(x)
+
+            if not self.training:
+                x = 1/2 * (x[0] + x[1])
+        else:
+            x = self.classifier(x)
         
         return x
 

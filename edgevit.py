@@ -109,6 +109,7 @@ class EdgeViT(nn.Module):
                 l.append(Residual(MLP(num_channels)))
                 l.append(Residual(ConditionalPositionalEncoding(num_channels)))
                 l.append(Residual(GlobalSparseAttetionModule(channels=num_channels, r=sample_ratio, heads=num_heads)))
+                l.append(Residual(MLP(num_channels)))
             
             in_channels = num_channels
         
